@@ -1,0 +1,8 @@
+prefix=/home/suryak/ECE3091-S2-2021/devel
+
+Name: diff_drive
+Description: Description of diff_drive
+Version: 1.0.0
+Cflags: -I/home/suryak/ECE3091-S2-2021/devel/include
+Libs: -L${prefix}/lib 
+Requires: actionlib_msgs

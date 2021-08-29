@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+
+from comms.Ultrasonics import Ultrasonics 
+from sensor_msgs.msg import Range
+import rospy 
+
+if __name__ == "__main__":
+    try:
+        rospy.init_node("republisher")
+        ultrasonics_pub = rospy.Publisher("robot/sensors/ultrasonics",Range,queue_size=100)
+        myUltrasonics = Ultrasonics(0,0x8)
+
+        while not rospy.is_shutdown():
+            ultrasonics_pub.publish(myUltrasonics.get_range_msg())
+    except rospy.ROSInterruptException:
+        pass 
