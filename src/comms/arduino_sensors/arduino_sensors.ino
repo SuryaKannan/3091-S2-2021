@@ -4,74 +4,113 @@
  * Author: Surya Kannan 
  * 
  * 1) Sends ultrasonic sensor information from Arduino to Jetson Nano via i2c. Up to four ultrasonics are supported (follow pin layout below)
- * 2) Sends commands to 360g Servo for continuous rotation 
+ * 2) Sends encoder tick information to Jetson via i2c
  * 
+ * 
+ * LIBRARIES REQUIRED:
+ * - NewPing
+ * - EnableInterrupt
  * 
  */
-#include <Servo.h>
+#include <NewPing.h>
 #include <Wire.h>
-
-Servo myServo;
+#include <EnableInterrupt.h>
 
 #define ADDRESS 0x8 // i2c address used 
+#define TRIGGER_PIN  6  // Arduino pin tied to trigger pin on the ultrasonic sensor.
+#define ECHO_PIN     5  // Arduino pin tied to echo pin on the ultrasonic sensor.
+#define MAX_DISTANCE 200 // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
 
-#define servoPin 9
+NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
 
-// pin defintions for ultrasonics 
-#define echoPin_R 5
-#define trigPin_R 6
-#define echoPin_L 7 
-#define trigPin_L 8 
+int dist = 0;
 
-long distance_L, distance_R;
+#define M1phaseA 2
+#define M1phaseB 3
 
-int dist(int trigPin, int echoPin);
-void requestEvent();
+#define M2phaseA 10
+#define M2phaseB 9
+
+long int M1countA = 0;
+long int M1countB = 0;
+long int M2countA = 0;
+long int M2countB = 0;
+
+int M1dir = 0;
+int M2dir = 0;
 
 void setup() {
-  myServo.attach(servoPin);
-  pinMode(trigPin_R, OUTPUT); 
-  pinMode(echoPin_R, INPUT); 
-  pinMode(trigPin_L, OUTPUT); 
-  pinMode(echoPin_L, INPUT); 
   Wire.begin(ADDRESS);
   Wire.onRequest(requestEvent);
-  Serial.begin(9600);
-  
+  Serial.begin(115200);
+  pinMode(M2phaseA,INPUT);
+  pinMode(M2phaseB,INPUT);
+  pinMode(M1phaseA,INPUT);
+  pinMode(M1phaseB,INPUT);
+  enableInterrupt(M2phaseA,M2pulseA,RISING);
+  enableInterrupt(M2phaseB,M2pulseB,RISING);
+  enableInterrupt(M1phaseA,M1pulseA,RISING);
+  enableInterrupt(M1phaseB,M1pulseB,RISING);
 }
 
-void loop() {
-  myServo.write(0); //0 is full speed in one direction, 180 is full speed in the other direction
-  distance_R = dist(trigPin_R,echoPin_R);
-  distance_L = dist(trigPin_L,echoPin_L);
-  Serial.print(distance_R);
+void loop() { 
+  dist = sonar.ping_cm();
+  delay(5); 
+  send_encoder_data();
+}
+
+void send_encoder_data(){
+  Serial.print(M1countA);
+  Serial.print(",");
+  Serial.print(M1countB);
+  Serial.print(",");
+  Serial.print(M2countA);
+  Serial.print(",");
+  Serial.print(M2countB);
   Serial.println();
-  
-}
-
-// code from https://create.arduino.cc/projecthub/abdularbi17/ultrasonic-sensor-hc-sr04-with-arduino-tutorial-327ff6
-int dist(int trigPin, int echoPin){
-  
-  // Clears the trigPin condition
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  // Sets the trigPin HIGH (ACTIVE) for 10 microseconds
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  // Reads the echoPin, returns the sound wave travel time in microseconds
-  int duration = pulseIn(echoPin, HIGH);
-  // Calculating the distance
-  return duration * 0.034 / 2; // Speed of sound wave divided by 2 (go and back)
-  
 }
 
 // order of sensor information critical
 void requestEvent() {
-  
-  long sensor_data[4];
-  sensor_data[0] = distance_R;
-  //sensor_data[1] = distance_L;
+  long sensor_data[1];
+  sensor_data[0] = dist;
   Wire.write((byte *) sensor_data, sizeof sensor_data);
   
+}
+
+
+void M2checkDirection(){
+  if(digitalRead(M2phaseB) == HIGH){
+    M2dir = 1;
+  }
+  else {
+    M2dir = -1;
+  }
+}
+
+void M1checkDirection(){
+  if(digitalRead(M1phaseB) == HIGH){
+    M1dir = 1;
+  }
+  else {
+    M1dir = -1;
+  }
+}
+
+void M2pulseA(){
+  M2checkDirection();
+  M2countA += M2dir;
+}
+
+void M2pulseB(){
+  M2countB += M2dir;
+}
+
+void M1pulseA(){
+  M1checkDirection();
+  M1countA += M1dir;
+}
+
+void M1pulseB(){
+  M1countB += M1dir;
 }
