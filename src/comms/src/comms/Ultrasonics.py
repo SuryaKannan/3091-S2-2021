@@ -29,7 +29,7 @@ class Ultrasonics:
     def get_range(self,position):
         range_msg = self.generate_empty_range()
         range_msg.header.frame_id = position
-        range_msg.range = self.get_data()[self.ULTRASONIC_FRAMES.index(position)]/100
+        range_msg.range = self.get_data()[self.ULTRASONIC_FRAMES.index(position)] # divide by 100 for metres 
         return range_msg
 
 

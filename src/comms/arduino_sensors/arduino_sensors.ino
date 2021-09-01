@@ -3,33 +3,44 @@
  * 
  * Author: Surya Kannan 
  * 
- * 1) Sends ultrasonic sensor information from Arduino to Jetson Nano via i2c. Up to four ultrasonics are supported (follow pin layout below)
- * 2) Sends encoder tick information to Jetson via i2c
- * 
- * 
  * LIBRARIES REQUIRED:
  * - NewPing
  * - EnableInterrupt
  * 
+ * 
+ * 1) Sends ultrasonic sensor information from Arduino to Jetson Nano via i2c. Up to four ultrasonics are supported (follow pin layout below)
+ * 2) Sends encoder tick information to Jetson via Serial
+ * 
+ * TODO:
+ * - Add fourth Ultrasonic sensor
+ * - Servo control 
  */
+ 
 #include <NewPing.h>
 #include <Wire.h>
 #include <EnableInterrupt.h>
 
 #define ADDRESS 0x8 // i2c address used 
-#define TRIGGER_PIN  6  // Arduino pin tied to trigger pin on the ultrasonic sensor.
-#define ECHO_PIN     5  // Arduino pin tied to echo pin on the ultrasonic sensor.
+#define TRIGGER_PIN  5  // Common Trig pin for ultrasonics 
+#define ECHO_PIN_F  8  // front ultrasonic
+#define ECHO_PIN_L  6  // left ultrasonic
+#define ECHO_PIN_R  7  // right ultrasonic
 #define MAX_DISTANCE 200 // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
 
-NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
+NewPing sonarF(TRIGGER_PIN, ECHO_PIN_F, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
+NewPing sonarL(TRIGGER_PIN, ECHO_PIN_L, MAX_DISTANCE); 
+NewPing sonarR(TRIGGER_PIN, ECHO_PIN_R, MAX_DISTANCE); 
 
-int dist = 0;
+int distF = 0;
+int distL = 0;
+int distR = 0;
 
-#define M1phaseA 2
-#define M1phaseB 3
+// phase connections for 6pin motor connectors 
+#define M1phaseA 3
+#define M1phaseB 2
 
 #define M2phaseA 10
-#define M2phaseB 9
+#define M2phaseB 11
 
 long int M1countA = 0;
 long int M1countB = 0;
@@ -39,6 +50,7 @@ long int M2countB = 0;
 int M1dir = 0;
 int M2dir = 0;
 
+// set up Serial, pins and I2C
 void setup() {
   Wire.begin(ADDRESS);
   Wire.onRequest(requestEvent);
@@ -54,7 +66,9 @@ void setup() {
 }
 
 void loop() { 
-  dist = sonar.ping_cm();
+  distF = sonarF.ping_cm();
+  distL = sonarL.ping_cm();
+  distR = sonarR.ping_cm();
   delay(5); 
   send_encoder_data();
 }
@@ -72,12 +86,13 @@ void send_encoder_data(){
 
 // order of sensor information critical
 void requestEvent() {
-  long sensor_data[1];
-  sensor_data[0] = dist;
+  byte sensor_data[3];
+  sensor_data[0] = distF;
+  sensor_data[1] = distL;
+  sensor_data[2] = distR;
   Wire.write((byte *) sensor_data, sizeof sensor_data);
   
 }
-
 
 void M2checkDirection(){
   if(digitalRead(M2phaseB) == HIGH){
