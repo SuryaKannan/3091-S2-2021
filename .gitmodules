@@ -1,3 +1,0 @@
-[submodule "src/diff_drive"]
-	path = src/diff_drive
-	url = https://github.com/merose/diff_drive.git
