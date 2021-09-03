@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import serial 
 import rospy
 from std_msgs.msg import Int32
@@ -11,15 +12,19 @@ if __name__ == "__main__":
     try:
         rospy.init_node("encoder")
         left_tick_pub = rospy.Publisher("lwheel_tick_count",Int32,queue_size=1000)
-        right_tick_pub = rospy.Publisher("lwheel_tick_count",Int32,queue_size=1000)
+        right_tick_pub = rospy.Publisher("rwheel_tick_count",Int32,queue_size=1000)
+        left_cumul_pub = rospy.Publisher("lwheel_ticks",Int32,queue_size=1000)
+        right_cumul_pub = rospy.Publisher("rwheel_ticks",Int32,queue_size=1000)
         myTicks = Ticks()
 
         while arduino.isOpen():
             byte_data = arduino.readline()
             ticks = myTicks.get_ticks(byte_data)
             if ticks is not None:
-                left_tick_pub.publish(ticks[0])
-                right_tick_pub.publish(ticks[1])
+                left_tick_pub.publish(int(ticks[0]))
+                right_tick_pub.publish(int(ticks[1]))
+                left_cumul_pub.publish(int(ticks[2]))
+                right_cumul_pub.publish(int(ticks[3]))
     
     except rospy.ROSInterruptException:
         pass 

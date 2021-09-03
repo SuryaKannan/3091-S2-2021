@@ -13,8 +13,8 @@ if __name__ == "__main__":
         rospy.init_node("encoder")
         left_tick_pub = rospy.Publisher("lwheel_tick_count",Int32,queue_size=1000)
         right_tick_pub = rospy.Publisher("rwheel_tick_count",Int32,queue_size=1000)
-        left_cumul_pub = rospy.Publisher("lwheel_cumulative",Int32,queue_size=1000)
-        right_cumul_pub = rospy.Publisher("rwheel_cumulative",Int32,queue_size=1000)
+        left_cumul_pub = rospy.Publisher("lwheel_ticks",Int32,queue_size=1000)
+        right_cumul_pub = rospy.Publisher("rwheel_ticks",Int32,queue_size=1000)
         myTicks = Ticks()
 
         while arduino.isOpen():

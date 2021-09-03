@@ -13,6 +13,7 @@ catkin_install_python(
   PROGRAMS
     nodes/republisher
     nodes/encoder
+    nodes/Rate
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
