@@ -7,10 +7,13 @@ import rospy
 if __name__ == "__main__":
     try:
         rospy.init_node("republisher")
-        ultrasonics_pub = rospy.Publisher("robot/sensors/ultrasonics",Range,queue_size=100)
+        ultrasonics_pub = rospy.Publisher("robot/sensors/ultrasonics",Range,queue_size=1000)
         myUltrasonics = Ultrasonics(0,0x8)
 
         while not rospy.is_shutdown():
-            ultrasonics_pub.publish(myUltrasonics.get_range_msg())
+            ultrasonics_pub.publish(myUltrasonics.get_range("front"))
+            ultrasonics_pub.publish(myUltrasonics.get_range("left"))
+            ultrasonics_pub.publish(myUltrasonics.get_range("right"))
+            rospy.sleep(0.05)
     except rospy.ROSInterruptException:
         pass 

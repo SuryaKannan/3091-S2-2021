@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+import rospy 
+from std_msgs.msg import Int32
+import RPi.GPIO as GPIO
+from actionlib_msgs.msg import GoalID
+from std_msgs.msg import Float32
+from nav_msgs.msg import Odometry
+import serial
+import time
+
+class Arduino():
+    def __init__(self):
+        self.arduino = serial.Serial('/dev/ttyUSB0',115200)
+        self.arduino.flushInput()
+    
+    def decodeData(self,data):
+        string_data = data.decode('utf-8','ignore')
+        stripped_data = string_data.strip()
+        return stripped_data.split(",")
+
+    def get_ticks(self,data):
+        stripped_ticks = self.decodeData(data)
+        if len(stripped_ticks)==4 and stripped_ticks:
+                ticks = list(map(int, stripped_ticks))
+                scaled_ticks = [element / 100 for element in ticks]
+                return scaled_ticks
+
+class MyRobotNode():
+    def __init__(self):
+        rospy.init_node('diff_drive_my_robot')
+        rospy.Subscriber('/lwheel_desired_rate', Int32, self.leftCallback)
+        rospy.Subscriber('/rwheel_desired_rate', Int32, self.rightCallback)
+        rospy.Subscriber('/diff_drive_go_to_goal/distance_to_goal',Float32,self.dist_to_goal)
+        rospy.Subscriber('/odom',Odometry,self.encoder_start)
+        self.goal_reached = rospy.Publisher('/diff_drive_go_to_goal/cancel',GoalID,queue_size=10)
+        self.outR = 33
+        self.outL = 32
+        self.dirR = 11
+        self.dirL = 12  
+        self.stopped = True
+        GPIO.setmode(GPIO.BOARD) #use numbering system on board 
+        GPIO.setup(self.outR,GPIO.OUT) # similar to arduino
+        GPIO.setup(self.dirR,GPIO.OUT)
+        GPIO.setup(self.outL,GPIO.OUT) 
+        GPIO.setup(self.dirL,GPIO.OUT)
+        self.pwmR = GPIO.PWM(self.outR,100) 
+        self.pwmR.start(0)
+        self.pwmR.ChangeDutyCycle(0)
+        self.pwmL = GPIO.PWM(self.outL,100) 
+        self.pwmL.start(0)
+        self.pwmL.ChangeDutyCycle(0)
+        GPIO.output(self.dirR,True)
+        GPIO.output(self.dirL,True)
+        self.arduino = Arduino()
+        self.ticks = None
+        self.tick_rates = None
+
+    def encoder_start(self,data):
+        self.start_ticks()
+
+
+    def get_tick_rates(self):
+        last_left_ticks = round(self.ticks[2])
+        last_right_ticks = round(self.ticks[3])
+        last_time = time.time()
+        time.sleep(0.05)
+        new_left_ticks = round(self.ticks[2])
+        new_right_ticks = round(self.ticks[3])
+        new_time = time.time()
+        if new_time > last_time:
+            left_rate = (new_left_ticks - last_left_ticks) / (new_time - last_time)
+            right_rate = (new_right_ticks - last_right_ticks) / (new_time - last_time)
+            self.tick_rates = [left_rate,right_rate]
+            print(self.tick_rates)
+
+
+    def start_ticks(self):
+        try:
+            while self.arduino.arduino.isOpen():
+                byte_data = self.arduino.arduino.readline()
+                tick_data = self.arduino.get_ticks(byte_data)
+                if tick_data is not None:
+                    self.ticks = tick_data
+                    #print("left count: ", round(self.ticks[0])," right count: ", round(self.ticks[1])," left cumulative: ", round(self.ticks[2])," right culmulative: ", round(self.ticks[3]))
+        except KeyboardInterrupt: # If CTRL+C is pressed, exit cleanly:
+            print("Keyboard interrupt")
+
+    def dist_to_goal(self,dist):
+        self.stopped = False
+        if dist.data < 0.05:
+            cancel = GoalID()
+            cancel.stamp = rospy.Time.now()
+            cancel.id = ''
+            self.goal_reached.publish(cancel)
+            self.pwmL.ChangeDutyCycle(0)
+            self.pwmR.ChangeDutyCycle(0)
+            self.stopped = True
+
+    def leftCallback(self,left_data):
+        if self.stopped == False:
+            self.pwmL.ChangeDutyCycle(int(self.pwm_map(left_data.data)))
+            #print("left: ",int(self.pwm_map(left_data.data)))
+        
+      
+    def rightCallback(self,right_data):
+         if self.stopped == False:
+            self.pwmR.ChangeDutyCycle(int(self.pwm_map(right_data.data)))
+            #print("right: ",int(self.pwm_map(right_data.data)))
+        
+        
+    def pwm_map(self,tick_rate):
+        if tick_rate > 0:
+            return round((95/46)*tick_rate+5)
+
+if __name__ == '__main__':
+    try:
+        my_robot = MyRobotNode()
+        rospy.spin()
+        my_robot.start_ticks()
+    except KeyboardInterrupt: # If CTRL+C is pressed, exit cleanly:
+        print("Keyboard interrupt")
+    finally:
+        GPIO.cleanup() # clear pin config 

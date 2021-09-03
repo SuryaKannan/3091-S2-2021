@@ -42,10 +42,10 @@ int distR = 0;
 #define M2phaseA 10
 #define M2phaseB 11
 
-long int M1countA = 0;
-long int M1countB = 0;
-long int M2countA = 0;
-long int M2countB = 0;
+long int M1count = 0;
+long int M1cumulCount = 0;
+long int M2count = 0;
+long int M2cumulCount = 0;
 
 int M1dir = 0;
 int M2dir = 0;
@@ -59,10 +59,8 @@ void setup() {
   pinMode(M2phaseB,INPUT);
   pinMode(M1phaseA,INPUT);
   pinMode(M1phaseB,INPUT);
-  enableInterrupt(M2phaseA,M2pulseA,RISING);
-  enableInterrupt(M2phaseB,M2pulseB,RISING);
-  enableInterrupt(M1phaseA,M1pulseA,RISING);
-  enableInterrupt(M1phaseB,M1pulseB,RISING);
+  enableInterrupt(M2phaseA,M2pulse,RISING);
+  enableInterrupt(M1phaseA,M1pulse,RISING);
 }
 
 void loop() { 
@@ -74,13 +72,13 @@ void loop() {
 }
 
 void send_encoder_data(){
-  Serial.print(M1countA);
+  Serial.print(M1count);
   Serial.print(",");
-  Serial.print(M1countB);
+  Serial.print(M2count);
   Serial.print(",");
-  Serial.print(M2countA);
+  Serial.print(M1cumulCount);
   Serial.print(",");
-  Serial.print(M2countB);
+  Serial.print(M2cumulCount);
   Serial.println();
 }
 
@@ -112,20 +110,14 @@ void M1checkDirection(){
   }
 }
 
-void M2pulseA(){
+void M2pulse(){
   M2checkDirection();
-  M2countA += M2dir;
+  M2count += M2dir;
+  M2cumulCount += abs(M2dir);
 }
 
-void M2pulseB(){
-  M2countB += M2dir;
-}
-
-void M1pulseA(){
+void M1pulse(){
   M1checkDirection();
-  M1countA += M1dir;
-}
-
-void M1pulseB(){
-  M1countB += M1dir;
+  M1count += M1dir;
+  M1cumulCount += abs(M1dir);
 }
