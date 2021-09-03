@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+
+import rospy
+from std_msgs.msg import Int32
+from std_msgs.msg import Float32
+import time
+
+class Rate():
+    def __init__(self):
+        rospy.init_node("encoder_rate")
+        rospy.Subscriber("lwheel_ticks",Int32,self.left_wheel)
+        rospy.Subscriber("rwheel_ticks",Int32,self.right_wheel)
+        self.left_rate = rospy.Publisher("lwheel_rate",Float32,queue_size=1000)
+        self.right_rate = rospy.Publisher("rwheel_rate",Float32,queue_size=1000)
+        self.left_ticks = 0
+        self.right_ticks = 0
+        self.delta = 0.65
+
+    def left_wheel(self,data):
+        self.left_ticks = data.data
+    
+    def right_wheel(self,data):
+        self.right_ticks = data.data
+    
+    def get_tick_rates(self):
+        while not rospy.is_shutdown():
+            last_left_ticks = round(self.left_ticks)
+            last_right_ticks = round(self.right_ticks)
+            last_time = time.time()
+            time.sleep(self.delta)
+            new_left_ticks = round(self.left_ticks)
+            new_right_ticks = round(self.right_ticks)
+            new_time = time.time()
+            if new_time > last_time:
+                lwheel_rate = (new_left_ticks - last_left_ticks) / (new_time - last_time)
+                rwheel_rate = (new_right_ticks - last_right_ticks) / (new_time - last_time)
+                self.left_rate.publish(lwheel_rate)
+                self.right_rate.publish(rwheel_rate)
+
+if __name__ == "__main__":
+    try:
+        rate = Rate()
+        rate.get_tick_rates()
+    except rospy.ROSInterruptException:
+        pass 

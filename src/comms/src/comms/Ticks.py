@@ -16,3 +16,5 @@ class Ticks:
                 ticks = list(map(int, stripped_ticks))
                 scaled_ticks = [element / 100 for element in ticks]
                 return scaled_ticks
+
+  
