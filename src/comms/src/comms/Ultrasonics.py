@@ -1,6 +1,5 @@
 import rospy
 import smbus
-import time
 from sensor_msgs.msg import Range
 
  # ultrasonics characterstics based on HC-SR04 datasheet

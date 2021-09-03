@@ -1,4 +1,5 @@
 <launch>
+    <node pkg="comms" name="encoder" type="encoder"> </node>
     <node pkg="comms" name="republisher" type="republisher"> </node>
     <node pkg="tf2_ros" type="static_transform_publisher" name="link1_broadcaster" args="0.1 0 0 0 0 0 1 base_link front"> </node>
     <node pkg="tf2_ros" type="static_transform_publisher" name="link2_broadcaster" args="0 0.05 0 0 0 0 1 base_link left"> </node>
