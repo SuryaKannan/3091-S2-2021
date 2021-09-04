@@ -14,7 +14,7 @@ class Rate():
         self.right_rate = rospy.Publisher("rwheel_rate",Float32,queue_size=1000)
         self.left_ticks = 0
         self.right_ticks = 0
-        self.delta = 0.65
+        self.delta = 0.45
 
     def left_wheel(self,data):
         self.left_ticks = data.data
@@ -23,10 +23,10 @@ class Rate():
         self.right_ticks = data.data
     
     def get_tick_rates(self):
+        last_left_ticks = round(self.left_ticks)
+        last_right_ticks = round(self.right_ticks)
+        last_time = time.time()
         while not rospy.is_shutdown():
-            last_left_ticks = round(self.left_ticks)
-            last_right_ticks = round(self.right_ticks)
-            last_time = time.time()
             time.sleep(self.delta)
             new_left_ticks = round(self.left_ticks)
             new_right_ticks = round(self.right_ticks)
@@ -36,6 +36,9 @@ class Rate():
                 rwheel_rate = (new_right_ticks - last_right_ticks) / (new_time - last_time)
                 self.left_rate.publish(lwheel_rate)
                 self.right_rate.publish(rwheel_rate)
+            last_left_ticks = new_left_ticks
+            last_right_ticks = new_right_ticks
+            last_time = new_time
 
 if __name__ == "__main__":
     try:
