@@ -1,3 +1,4 @@
-[submodule "src/diff_drive"]
-	path = src/diff_drive
-	url = https://github.com/SuryaKannan/diff_drive.git
+
+[submodule "diff_drive"]
+	path = diff_drive
+	url = https://github.com/SuryaKannan/diff_drive.git/
