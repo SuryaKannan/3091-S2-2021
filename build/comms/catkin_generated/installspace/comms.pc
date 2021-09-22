@@ -1,8 +1,0 @@
-prefix=/home/suryak/ECE3091-S2-2021/install
-
-Name: comms
-Description: Description of comms
-Version: 1.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 

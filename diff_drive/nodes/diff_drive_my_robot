@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+
+import rospy 
+import time
+from std_msgs.msg import Int32
+import RPi.GPIO as GPIO
+from actionlib_msgs.msg import GoalID
+from std_msgs.msg import Float32
+from sensor_msgs.msg import Range 
+from nav_msgs.msg import Odometry
+from diff_drive.msg import GoToPoseActionGoal 
+
+class MyRobotGPIO():
+    def __init__(self):
+        self.outR = 32
+        self.outL = 33
+        self.dirR = 11
+        self.dirL = 12
+        GPIO.setmode(GPIO.BOARD) #use numbering system on board 
+        GPIO.setup(self.outR,GPIO.OUT) # similar to arduino
+        GPIO.setup(self.dirR,GPIO.OUT)
+        GPIO.setup(self.outL,GPIO.OUT) 
+        GPIO.setup(self.dirL,GPIO.OUT)
+        self.pwmR = GPIO.PWM(self.outR,100) 
+        self.pwmR.start(0)
+        self.pwmR.ChangeDutyCycle(0)
+        self.pwmL = GPIO.PWM(self.outL,100) 
+        self.pwmL.start(0)
+        self.pwmL.ChangeDutyCycle(0)
+        GPIO.output(self.dirR,True)
+        GPIO.output(self.dirL,True)
+        
+class MyRobotNode():
+    def __init__(self):
+        rospy.init_node('diff_drive_my_robot')
+        rospy.Subscriber('/lwheel_desired_rate', Int32, self.leftCallback)
+        rospy.Subscriber('/rwheel_desired_rate', Int32, self.rightCallback)
+        rospy.Subscriber('/diff_drive_go_to_goal/distance_to_goal',Float32,self.dist_to_goal)
+        rospy.Subscriber('/robot/sensors/ultrasonics',Range, self.ultrasonics)
+        rospy.Subscriber('/odom',Odometry, self.orientation)
+        self.goal_reached = rospy.Publisher('/diff_drive_go_to_goal/cancel',GoalID,queue_size=10)
+        self.goal_create = rospy.Publisher("/diff_drive_go_to_goal/goal",GoToPoseActionGoal,queue_size=10)
+        self.stopped = True
+        self.gpio = MyRobotGPIO()
+        self.front_range = 0
+        self.right_range = 0
+        self.left_range = 0
+        self.error_range = 20
+        self.z_orientation = 0
+        self.x_orientation = 0
+        self.delta = 0.5
+        self.forward_speed = 30
+
+    def forward(self):
+        self.gpio.pwmL.ChangeDutyCycle(self.forward_speed)
+        self.gpio.pwmR.ChangeDutyCycle(self.forward_speed)
+    
+    def stop(self):
+        self.gpio.pwmL.ChangeDutyCycle(0)
+        self.gpio.pwmR.ChangeDutyCycle(0)
+
+    def avoidance(self):
+        while self.z_orientation > 0.02:
+            self.gpio.pwmR.ChangeDutyCycle(self.forward_speed) # turn until 90 degrees perpendicular to object
+        self.forward() # travel a safe distance away from obstacle
+        time.sleep(self.delta)
+        create_goal = GoToPoseActionGoal()
+        create_goal.goal.pose.pose.position.x = 0.30
+        create_goal.goal.pose.pose.position.y = -0.30
+        create_goal.goal.pose.pose.orientation.x = 0
+        create_goal.goal.pose.pose.orientation.y = 0
+        create_goal.goal.pose.pose.orientation.z = 0.7
+        create_goal.goal.pose.pose.orientation.w = -0.7
+        self.goal_create.publish(create_goal)
+        
+    def ultrasonics(self,sensorData):
+        if sensorData.header.frame_id == "front":
+            self.front_range = sensorData.range
+        
+        if sensorData.header.frame_id == "right":
+            self.right_range = sensorData.range
+        
+        if sensorData.header.frame_id == "left":
+            self.left_range = sensorData.range
+        
+        if self.front_range <= self.error_range and self.front_range and self.stopped == False:
+            self.cancel_goal()
+            self.avoidance()
+    
+    def cancel_goal(self):
+        cancel = GoalID()
+        cancel.stamp = rospy.Time.now()
+        cancel.id = ''
+        self.goal_reached.publish(cancel)
+        self.gpio.pwmL.ChangeDutyCycle(0)
+        self.gpio.pwmR.ChangeDutyCycle(0)
+        self.stopped = True
+    
+    def orientation(self,odomData):
+        self.z_orientation = odomData.pose.pose.orientation.z
+        self.x_position = odomData.pose.pose.position.x
+
+    def dist_to_goal(self,dist):
+        self.stopped = False #only resume planning once a goal has been provided
+        if dist.data < 0.01:
+            self.cancel_goal()
+
+    def leftCallback(self,left_data):
+        if self.stopped == False and left_data:
+            self.gpio.pwmL.ChangeDutyCycle(int(self.pwm_map(left_data.data)/2))
+            #print("left: ",int(self.pwm_map(left_data.data)))
+        
+    def rightCallback(self,right_data):
+         if self.stopped == False and right_data:
+            self.gpio.pwmR.ChangeDutyCycle(int(self.pwm_map(right_data.data)/2))
+            #print("right: ",int(self.pwm_map(right_data.data)))
+        
+    def pwm_map(self,tick_rate):
+        if tick_rate > 0 and tick_rate:
+            return round((95/24)*tick_rate+5) #linear mapping based on lowest and highest PWM duty cycle 
+
+if __name__ == '__main__':
+    try:
+        my_robot = MyRobotNode()
+        rospy.spin()
+    except KeyboardInterrupt: # If CTRL+C is pressed, exit cleanly:
+        print("Keyboard interrupt")
+    finally:
+        GPIO.cleanup() # clear pin config 
