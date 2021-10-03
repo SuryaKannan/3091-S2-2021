@@ -62,7 +62,7 @@ while(1):
     circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 80, param1=50, param2=20, minRadius=10, maxRadius=25)
     if circles is not None:
         circles = np.uint16(np.around(circles))
-    img_circles = img.copy()
+    img_circles = result.copy()
 
     if circles is not None:
         for i in circles[0, :]:
