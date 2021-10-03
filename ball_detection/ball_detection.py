@@ -5,7 +5,7 @@ def nothing(x):
     pass
 
 # Load img
-img = cv2.imread('group 4/frame000000.png')
+video = cv2.VideoCapture('Data/video.avi')
 
 # Create a window
 cv2.namedWindow('image')
@@ -41,6 +41,8 @@ while(1):
     lower = np.array([hMin, sMin, vMin])
     upper = np.array([hMax, sMax, vMax])
 
+    ret, img = video.read()
+
     # Convert to HSV format and color threshold
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(hsv, lower, upper)
@@ -73,7 +75,9 @@ while(1):
 
     # Display result image
     cv2.imshow('image', img_circles)
-    if cv2.waitKey(10) & 0xFF == ord('q'):
+
+    # Press Q on keyboard to stop recording
+    if cv2.waitKey(100) & 0xFF == ord('q'):
         break
 
 cv2.destroyAllWindows()
