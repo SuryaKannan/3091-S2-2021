@@ -3,6 +3,7 @@
  * 
  * LIBRARIES REQUIRED:
  * - NewPing
+ * - EnableInterrupt
  * 
  * 1) Sends ultrasonic sensor information from Arduino to Jetson Nano via i2c. Up to four ultrasonics are supported (follow pin layout below)
  * 2) Sends servo speed once at void setup, servo maintains that speed
@@ -17,7 +18,7 @@
 #define TRIGGER_PIN  5  // Common Trig pin for ultrasonics 
 #define ECHO_PIN_F  8  // front ultrasonic
 #define ECHO_PIN_L  6  // left ultrasonic
-#define ECHO_PIN_R  7  // right ultrasonic
+#define ECHO_PIN_R  4  // right ultrasonic
 #define SERVO_PIN 9 // digital pin 9
 #define MAX_DISTANCE 200 // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
 
@@ -50,17 +51,7 @@ void loop() {
   distL = sonarL.ping_cm();
   distR = sonarR.ping_cm();
   delay(5); 
-}
-
-
-// order of sensor information critical
-void requestEvent() {
-  byte sensor_data[3];
-  sensor_data[0] = distF;
-  sensor_data[1] = distL;
-  sensor_data[2] = distR;
-  Wire.write((byte *) sensor_data, sizeof sensor_data);
-
+  /*
   Serial.print("F: ");
   Serial.print(distF);
   Serial.print('\t');
@@ -71,5 +62,15 @@ void requestEvent() {
 
   Serial.print("R: ");
   Serial.println(distR);
-  
+  */
+}
+
+
+// order of sensor information critical
+void requestEvent() {
+  byte sensor_data[3];
+  sensor_data[0] = distF;
+  sensor_data[1] = distL;
+  sensor_data[2] = distR;
+  Wire.write((byte *) sensor_data, sizeof sensor_data);  
 }
