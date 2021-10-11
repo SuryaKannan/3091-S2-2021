@@ -42,6 +42,10 @@ while(1):
     upper = np.array([hMax, sMax, vMax])
 
     ret, img = video.read()
+    dimensions = img.shape
+    # print("Image Size:" + str(dimensions))
+    height = dimensions[0]
+    width = dimensions[1]
 
     # Convert to HSV format and color threshold
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -50,7 +54,7 @@ while(1):
 
     # Print if there is a change in HSV value
     if((phMin != hMin) | (psMin != sMin) | (pvMin != vMin) | (phMax != hMax) | (psMax != sMax) | (pvMax != vMax) ):
-        print("(hMin = %d , sMin = %d, vMin = %d), (hMax = %d , sMax = %d, vMax = %d)" % (hMin , sMin , vMin, hMax, sMax , vMax))
+        print("(hMin = %d , sMin = %d, vMin = %d), (hMax = %d , sMax = %d, vMax = %d)" % (hMin , sMin , vMin, hMax, sMax, vMax))
         phMin = hMin
         psMin = sMin
         pvMin = vMin
@@ -66,18 +70,27 @@ while(1):
         circles = np.uint16(np.around(circles))
     img_circles = result.copy()
 
+    close_range = 20
+    centre_width = int(width/2)
+
+    cv2.line(img_circles, (centre_width, 0), (centre_width, height), (255, 0, 0), 2)
+    cv2.line(img_circles, (centre_width, centre_width-close_range), (centre_width, height), (0, 0, 255), 2)
+
     if circles is not None:
         for i in circles[0, :]:
             # draw the outer circle
             cv2.circle(img_circles, (i[0], i[1]), i[2], (0, 255, 0), 2)
             # draw the center of the circle
             cv2.circle(img_circles, (i[0], i[1]), 2, (0, 0, 255), 3)
+            distance = i[0]-centre_width
+            print(distance)
 
     # Display result image
-    cv2.imshow('image', img_circles)
+    cv2.imshow('image', img)
+    cv2.imshow('result', img_circles)
 
     # Press Q on keyboard to stop recording
-    if cv2.waitKey(100) & 0xFF == ord('q'):
+    if cv2.waitKey(1000) & 0xFF == ord('q'):
         break
 
 cv2.destroyAllWindows()
