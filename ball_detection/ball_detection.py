@@ -145,7 +145,7 @@ while(1):
             cv2.circle(img_circles, (i[0], i[1]), 2, (0, 0, 255), 3)
             distance = i[0]-centre_width
 
-            if len(distance_arr >= 10):
+            if len(distance_arr) >= 10:
                 distance_arr.pop()
             distance_arr.append(distance)
 
