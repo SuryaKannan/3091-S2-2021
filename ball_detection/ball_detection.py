@@ -5,7 +5,10 @@ def nothing(x):
     pass
 
 # Load img
-video = cv2.VideoCapture('Data/video.avi')
+# video = cv2.VideoCapture('Data/video.avi')
+images = ['distractor.jpg', 'distractor_target.jpg', 'distractor_target_obstacle.jpg', 'no_balls.jpg', 'obstacle_distractor.jpg', 'target_bearing_no_obstacle.jpg', 'target_bearing_bostacle.jpg']
+target_img = images[5]
+img = cv2.imread(target_img)
 
 # Create a window
 cv2.namedWindow('image')
@@ -19,14 +22,23 @@ cv2.createTrackbar('HMax', 'image', 0, 179, nothing)
 cv2.createTrackbar('SMax', 'image', 0, 255, nothing)
 cv2.createTrackbar('VMax', 'image', 0, 255, nothing)
 
+cv2.createTrackbar('dp', 'image', 6, 13, nothing)
+cv2.createTrackbar('param1', 'image', 24, 100, nothing)
+cv2.createTrackbar('param2', 'image', 30, 100, nothing)
+
 # Set default value for Max HSV trackbars
+cv2.setTrackbarPos('dp', 'image', 11)
+cv2.setTrackbarPos('param1', 'image', 50)
+cv2.setTrackbarPos('param2', 'image', 30)
+
 cv2.setTrackbarPos('HMax', 'image', 179)
-cv2.setTrackbarPos('SMax', 'image', 255)
+cv2.setTrackbarPos('SMax', 'image', 100)
 cv2.setTrackbarPos('VMax', 'image', 255)
 
 # Initialize HSV min/max values
 hMin = sMin = vMin = hMax = sMax = vMax = 0
 phMin = psMin = pvMin = phMax = psMax = pvMax = 0
+
 
 while(1):
     # Get current positions of all trackbars
@@ -37,11 +49,15 @@ while(1):
     sMax = cv2.getTrackbarPos('SMax', 'image')
     vMax = cv2.getTrackbarPos('VMax', 'image')
 
+    dp = cv2.getTrackbarPos('dp', 'image')
+    param1 = cv2.getTrackbarPos('param1', 'image')
+    param2 = cv2.getTrackbarPos('param2', 'image')
+
     # Set minimum and maximum HSV values to display
     lower = np.array([hMin, sMin, vMin])
     upper = np.array([hMax, sMax, vMax])
 
-    ret, img = video.read()
+    # ret, img = video.read()
     dimensions = img.shape
     # print("Image Size:" + str(dimensions))
     height = dimensions[0]
@@ -65,9 +81,10 @@ while(1):
     gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
 
     # hough circles
-    circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 80, param1=50, param2=20, minRadius=10, maxRadius=25)
+    circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, dp/10, 80, param1=param1, param2=param2, minRadius=10, maxRadius=25)
     if circles is not None:
         circles = np.uint16(np.around(circles))
+
     img_circles = result.copy()
 
     close_range = 20
@@ -87,10 +104,10 @@ while(1):
 
     # Display result image
     cv2.imshow('image', img)
-    cv2.imshow('result', img_circles)
+    cv2.imshow(target_img, img_circles)
 
     # Press Q on keyboard to stop recording
-    if cv2.waitKey(1000) & 0xFF == ord('q'):
+    if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
 cv2.destroyAllWindows()
