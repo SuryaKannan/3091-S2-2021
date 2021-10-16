@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>control</name>
+  <version>1.0.0</version>
+  <description>
+
+    This package provides control methods for a robot
+  
+  </description>
+  <maintainer email="surya.kannan@icloud.com">Surya Kannan</maintainer>
+  <license>MIT</license>
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>sensor_msgs</depend>
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+
+</package>
