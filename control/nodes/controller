@@ -19,7 +19,7 @@ class Controller():
         self.back_range = 0
         self.orientation_range = 15
         self.phase1 = True
-        self.target_obtained = False
+        self.target_detected = False
         rospy.Subscriber('/robot/sensors/ultrasonics',Range, self.ultrasonics)
 
     def ultrasonics(self,sensorData):
@@ -34,24 +34,54 @@ class Controller():
         
         if sensorData.header.frame_id == "back":
             self.back_range = sensorData.range
-        
-        if self.right_range < self.orientation_range and self.back_range < self.orientation_range and self.right_range and self.back_range:
-            self.direction = "right"
-        
-        if self.front_range < self.orientation_range and self.right_range < self.orientation_range and self.right_range and self.front_range:
-            self.wall = "right"
-        
-        #print("direction: ",self.direction," wall: ",self.wall)
-        
-        self.loop()
-            
-    def loop(self):
+
         print("direction: ",self.direction," wall: ",self.wall)
-        if self.direction is not "right":
+        
+        if self.phase1:
+            if self.right_range < self.orientation_range and self.back_range < self.orientation_range and self.right_range and self.back_range:
+                self.direction = "right"
+            
+            if self.front_range < self.orientation_range and self.right_range < self.orientation_range and self.right_range and self.front_range:
+                self.wall = "right"
+            
+            self.phase_1_loop()
+    
+            
+    def phase_1_loop(self):
+        # scan from left corner until detected
+        if self.direction is not "right" and not self.target_detected:
             self.move.clockwise()
+        elif self.direction is not "right" and self.target_detected:
+            self.allign()
+            self.phase1 = False
         else:
             self.move.stop()
+        
     
+        # move to right wall
+        if self.direction is "right" and self.wall is not "right":
+            self.move.forward()
+            if self.right_range > int(1.25*self.orientation_range):
+                self.move.right_slight()
+            elif self.right_range < self.orientation_range: 
+                self.move.left_slight()
+            else:
+                self.move.forward
+        
+        # scan from right corner until detected, stop if you can't detect the bearing
+        if self.wall is "right" and not self.target_detected:
+            self.move.anticlockwise()
+            if self.left_range < self.orientation_range:
+                self.move.stop()
+        elif self.wall is "right" and self.target_detected:
+            self.allign()
+            self.phase1 = False
+        
+
+    def allign(self):
+        pass
+        
+
 if __name__ == '__main__':
     try:
         my_robot = Controller()

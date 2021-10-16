@@ -51,6 +51,18 @@ class Move:
         self.gpio.pwmL.ChangeDutyCycle(self.forward_speed)
         self.gpio.pwmR.ChangeDutyCycle(self.turn_speed)
     
+    def left_slight(self):
+        self.gpio.set_dirL(True)
+        self.gpio.set_dirR(True)
+        self.gpio.pwmL.ChangeDutyCycle(int(self.turn_speed*1.25))
+        self.gpio.pwmR.ChangeDutyCycle(self.forward_speed)
+    
+    def right_slight(self):
+        self.gpio.set_dirL(True)
+        self.gpio.set_dirR(True)
+        self.gpio.pwmL.ChangeDutyCycle(self.forward_speed)
+        self.gpio.pwmR.ChangeDutyCycle(int(self.turn_speed*1.25))
+    
     def clockwise(self):
         self.gpio.set_dirL(True)
         self.gpio.set_dirR(False)
