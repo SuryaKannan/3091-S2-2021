@@ -5,10 +5,10 @@ def nothing(x):
     pass
 
 # Load img
-# video = cv2.VideoCapture('vid3_lighter/vid3_lighter.avi')
+video = cv2.VideoCapture('vid3_lighter/vid3_lighter_trim.avi')
 # images = ['distractor.jpg', 'distractor_target.jpg', 'distractor_target_obstacle.jpg', 'no_balls.jpg', 'obstacle_distractor.jpg', 'target_bearing_no_obstacle.jpg', 'target_bearing_obstacle.jpg', 'about_to_exit_frame.jpg', 'closest.jpg', 'furthest.jpg', 'furthest_2.jpg']
 # target_img = images[8]
-img = cv2.imread("vid3_lighter/test_image83.jpeg")
+# img = cv2.imread("vid3_lighter/test_image83.jpeg")
 
 close_range = 100
 
@@ -41,8 +41,8 @@ cv2.setTrackbarPos('SMax', 'image', 70)
 cv2.setTrackbarPos('VMax', 'image', 255)
 
 cv2.setTrackbarPos('dp', 'image', 10)
-cv2.setTrackbarPos('param1', 'image', 25)
-cv2.setTrackbarPos('param2', 'image', 25)
+cv2.setTrackbarPos('param1', 'image', 40)
+cv2.setTrackbarPos('param2', 'image', 40)
 cv2.setTrackbarPos('minRadius', 'image', 10)
 cv2.setTrackbarPos('maxRadius', 'image', 60)
 
@@ -52,9 +52,16 @@ phMin = psMin = pvMin = phMax = psMax = pvMax = 0
 
 distance_arr = []
 target_detected = False
-detection_count = 0
+detection_count = []
+frame_count = 0
 
 while(1):
+
+    ret, img = video.read()
+    dimensions = img.shape
+    # print("Image Size:" + str(dimensions))
+    height = dimensions[0]
+    width = dimensions[1]
 
     # copy from here
 
@@ -75,7 +82,7 @@ while(1):
         circles = np.uint16(np.around(circles))
         for i in circles[0, :]:
             # draw the circle
-            cv2.circle(img_modify, (i[0], i[1]), i[2]+5, (0, 0, 0), -1)
+            cv2.circle(img_modify, (i[0], i[1]), i[2]+20, (0, 0, 0), -1)
 
     # to here
     # change img to img_modify after this line
@@ -97,12 +104,6 @@ while(1):
     # Set minimum and maximum HSV values to display
     lower = np.array([hMin, sMin, vMin])
     upper = np.array([hMax, sMax, vMax])
-
-    # ret, img = video.read()
-    dimensions = img.shape
-    # print("Image Size:" + str(dimensions))
-    height = dimensions[0]
-    width = dimensions[1]
 
     # Convert to HSV format and color threshold
     hsv = cv2.cvtColor(img_modify, cv2.COLOR_BGR2HSV)
@@ -133,9 +134,24 @@ while(1):
     cv2.line(img_circles, (centre_width, 0), (centre_width, height), (255, 0, 0), 2)
     cv2.line(img_circles, (centre_width, height-close_range), (centre_width, height), (0, 0, 255), 2)
 
+    frame_count += 1
+    if frame_count >= 20:
+        frame_count = 20
+        detection_count.pop(0)
+
+    detection_count.append(0)
+
+    print(target_detected)
+    print("Detection:", detection_count)
+
+    if sum(detection_count) < 10:
+        target_detected = False
+
     if circles is not None:
-        detection_count += 1
-        if detection_count >= 10:
+        detection_count.pop(-1)
+        detection_count.append(1)
+
+        if sum(detection_count) >= 15:
             target_detected = True
 
         for i in circles[0, :]:
@@ -161,7 +177,7 @@ while(1):
     cv2.imshow('modified', img_modify)
 
     # Press Q on keyboard to stop recording
-    if cv2.waitKey(100) & 0xFF == ord('q'):
+    if cv2.waitKey(500) & 0xFF == ord('q'):
         break
 
 cv2.destroyAllWindows()
