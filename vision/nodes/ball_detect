@@ -1,0 +1,62 @@
+#!/usr/bin/env python2
+
+from sensor_msgs.msg import Image
+from std_msgs.msg import Float32
+import rospy 
+from cv_bridge import CvBridge
+from cv_bridge import CvBridge, CvBridgeError
+import cv2
+import numpy as np
+
+class Detect():
+    def __init__(self):
+        rospy.init_node("ball_detect")
+        rospy.Subscriber("/jetbot_camera/raw",Image,self.image_callback)
+        self.bridge = CvBridge()
+    
+    def nothing(self,x):
+        pass
+    
+    def image_callback(self,data):
+        cv2_image = self.bridge.imgmsg_to_cv2(data,desired_encoding='passthrough')
+        img = cv2.flip(cv2_image, -1)
+
+      
+        dimensions = img.shape
+       
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        lower = np.array([0, 0, 0])
+        upper = np.array([179, 57, 137])
+        mask = cv2.inRange(hsv, lower, upper)
+        result = cv2.bitwise_and(img, img, mask=mask)
+        
+        cv2.imshow("Mask Result", result)
+        
+        gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
+        
+        ## hough circles
+        circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 80, param1=50, param2=20, minRadius=10, maxRadius=25)
+        if circles is not None:
+            circles = np.uint16(np.around(circles))
+        img_circles = img.copy()
+        
+        if circles is not None:
+            for i in circles[0, :]:
+                # draw the outer circle
+                cv2.circle(img_circles, (i[0], i[1]), i[2], (0, 255, 0), 2)
+                # draw the center of the circle
+                cv2.circle(img_circles, (i[0], i[1]), 2, (0, 0, 255), 3)
+        
+        
+        cv2.imshow("Original", img)
+        cv2.imshow("Hough Circle Result", img_circles)
+        cv2.waitKey(3)
+
+
+
+if __name__ == "__main__":
+    try:
+        detect = Detect()
+        rospy.spin()
+    except rospy.ROSInterruptException:
+        pass 

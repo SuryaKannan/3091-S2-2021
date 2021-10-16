@@ -1,5 +1,5 @@
 <launch>
-    <node pkg="comms" name="encoder" type="encoder"> </node>
-    <!--node pkg="comms" name="republisher" type="republisher"> </node-->
-    <node pkg="comms" name="Rate" type="Rate"> </node>
+    <!--node pkg="comms" name="encoder" type="encoder"> </node-->
+    <node pkg="comms" name="republisher" type="republisher"> </node>
+    <!--node pkg="comms" name="Rate" type="Rate"> </node-->
 </launch>

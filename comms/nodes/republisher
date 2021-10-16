@@ -14,6 +14,7 @@ if __name__ == "__main__":
             ultrasonics_pub.publish(myUltrasonics.get_range("front"))
             ultrasonics_pub.publish(myUltrasonics.get_range("left"))
             ultrasonics_pub.publish(myUltrasonics.get_range("right"))
+            ultrasonics_pub.publish(myUltrasonics.get_range("back"))
             rospy.sleep(0.05)
     except rospy.ROSInterruptException:
         pass 

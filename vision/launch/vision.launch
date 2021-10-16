@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="vision" name="ball_detect" type="ball_detect"> </node>
+</launch>
