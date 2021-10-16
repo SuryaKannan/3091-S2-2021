@@ -1,25 +1,61 @@
 #!/usr/bin/env python3
 
+from typing import Tuple
 import rospy
 import RPi.GPIO as GPIO
 from control.Move import Move
+from sensor_msgs.msg import Range 
 import time
 
 class Controller():
     def __init__(self):
         rospy.init_node("controller")
         self.move = Move()
+        self.wall = "left"
+        self.direction = "forward"
+        self.front_range = 0
+        self.right_range = 0
+        self.left_range = 0
+        self.back_range = 0
+        self.orientation_range = 15
+        self.phase1 = True
+        self.target_obtained = False
+        rospy.Subscriber('/robot/sensors/ultrasonics',Range, self.ultrasonics)
+
+    def ultrasonics(self,sensorData):
+        if sensorData.header.frame_id == "front":
+            self.front_range = sensorData.range
         
-     
+        if sensorData.header.frame_id == "right":
+            self.right_range = sensorData.range
+        
+        if sensorData.header.frame_id == "left":
+            self.left_range = sensorData.range
+        
+        if sensorData.header.frame_id == "back":
+            self.back_range = sensorData.range
+        
+        if self.right_range < self.orientation_range and self.back_range < self.orientation_range and self.right_range and self.back_range:
+            self.direction = "right"
+        
+        if self.front_range < self.orientation_range and self.right_range < self.orientation_range and self.right_range and self.front_range:
+            self.wall = "right"
+        
+        #print("direction: ",self.direction," wall: ",self.wall)
+        
+        self.loop()
+            
+    def loop(self):
+        print("direction: ",self.direction," wall: ",self.wall)
+        if self.direction is not "right":
+            self.move.clockwise()
+        else:
+            self.move.stop()
     
 if __name__ == '__main__':
     try:
         my_robot = Controller()
-        #rospy.spin()
-        my_robot.move.right()
-        time.sleep(10)
-        my_robot.move.stop()
-        GPIO.cleanup() # clear pin config 
+        rospy.spin()
     
     except KeyboardInterrupt: # If CTRL+C is pressed, exit cleanly:
         print("Keyboard interrupt")
