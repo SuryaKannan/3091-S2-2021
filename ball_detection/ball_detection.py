@@ -5,12 +5,14 @@ def nothing(x):
     pass
 
 # Load img
-video = cv2.VideoCapture('vid2_lighter/vid2_lighter.avi')
+# video = cv2.VideoCapture('vid3_lighter/vid3_lighter.avi')
 # images = ['distractor.jpg', 'distractor_target.jpg', 'distractor_target_obstacle.jpg', 'no_balls.jpg', 'obstacle_distractor.jpg', 'target_bearing_no_obstacle.jpg', 'target_bearing_obstacle.jpg', 'about_to_exit_frame.jpg', 'closest.jpg', 'furthest.jpg', 'furthest_2.jpg']
 # target_img = images[8]
-# img = cv2.imread(target_img)
+img = cv2.imread("vid3_lighter/test_image83.jpeg")
 
 close_range = 100
+
+
 
 # Create a window
 cv2.namedWindow('image')
@@ -39,8 +41,8 @@ cv2.setTrackbarPos('SMax', 'image', 70)
 cv2.setTrackbarPos('VMax', 'image', 255)
 
 cv2.setTrackbarPos('dp', 'image', 10)
-cv2.setTrackbarPos('param1', 'image', 50)
-cv2.setTrackbarPos('param2', 'image', 40)
+cv2.setTrackbarPos('param1', 'image', 25)
+cv2.setTrackbarPos('param2', 'image', 25)
 cv2.setTrackbarPos('minRadius', 'image', 10)
 cv2.setTrackbarPos('maxRadius', 'image', 60)
 
@@ -48,8 +50,36 @@ cv2.setTrackbarPos('maxRadius', 'image', 60)
 hMin = sMin = vMin = hMax = sMax = vMax = 0
 phMin = psMin = pvMin = phMax = psMax = pvMax = 0
 
+distance_arr = []
+target_detected = False
+detection_count = 0
 
 while(1):
+
+    # copy from here
+
+    # Convert to HSV format and color threshold
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    lower_modify = np.array([35, 50, 0])
+    upper_modify = np.array([179, 255, 255])
+    mask = cv2.inRange(hsv, lower_modify, upper_modify)
+    modify = cv2.bitwise_and(img, img, mask=mask)
+
+    gray_modify = cv2.cvtColor(modify, cv2.COLOR_BGR2GRAY)
+
+    circles = cv2.HoughCircles(gray_modify, cv2.HOUGH_GRADIENT, 1, 80, param1=25, param2=25, minRadius=10, maxRadius=60)
+
+    img_modify = img.copy()
+
+    if circles is not None:
+        circles = np.uint16(np.around(circles))
+        for i in circles[0, :]:
+            # draw the circle
+            cv2.circle(img_modify, (i[0], i[1]), i[2]+5, (0, 0, 0), -1)
+
+    # to here
+    # change img to img_modify after this line
+
     # Get current positions of all trackbars
     hMin = cv2.getTrackbarPos('HMin', 'image')
     sMin = cv2.getTrackbarPos('SMin', 'image')
@@ -68,16 +98,16 @@ while(1):
     lower = np.array([hMin, sMin, vMin])
     upper = np.array([hMax, sMax, vMax])
 
-    ret, img = video.read()
+    # ret, img = video.read()
     dimensions = img.shape
     # print("Image Size:" + str(dimensions))
     height = dimensions[0]
     width = dimensions[1]
 
     # Convert to HSV format and color threshold
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    hsv = cv2.cvtColor(img_modify, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(hsv, lower, upper)
-    result = cv2.bitwise_and(img, img, mask=mask)
+    result = cv2.bitwise_and(img_modify, img_modify, mask=mask)
 
     # Print if there is a change in HSV value
     if((phMin != hMin) | (psMin != sMin) | (pvMin != vMin) | (phMax != hMax) | (psMax != sMax) | (pvMax != vMax) ):
@@ -104,12 +134,22 @@ while(1):
     cv2.line(img_circles, (centre_width, height-close_range), (centre_width, height), (0, 0, 255), 2)
 
     if circles is not None:
+        detection_count += 1
+        if detection_count >= 10:
+            target_detected = True
+
         for i in circles[0, :]:
             # draw the outer circle
             cv2.circle(img_circles, (i[0], i[1]), i[2], (0, 255, 0), 2)
             # draw the center of the circle
             cv2.circle(img_circles, (i[0], i[1]), 2, (0, 0, 255), 3)
             distance = i[0]-centre_width
+
+            if len(distance_arr >= 10):
+                distance_arr.pop()
+            distance_arr.append(distance)
+
+            print("Radius:", i[2])
             print(distance)
             if(i[1]>=(height-close_range)):
                 print("Target in range")
@@ -118,9 +158,10 @@ while(1):
     cv2.imshow('image', img)
     # cv2.imshow(target_img, img_circles)
     cv2.imshow('result', img_circles)
+    cv2.imshow('modified', img_modify)
 
     # Press Q on keyboard to stop recording
-    if cv2.waitKey(1000) & 0xFF == ord('q'):
+    if cv2.waitKey(100) & 0xFF == ord('q'):
         break
 
 cv2.destroyAllWindows()
