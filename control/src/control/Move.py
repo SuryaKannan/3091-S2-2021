@@ -43,12 +43,12 @@ class Move:
         self.gpio.set_dirL(True)
         self.gpio.set_dirR(True)
         self.gpio.pwmL.ChangeDutyCycle(self.turn_speed)
-        self.gpio.pwmR.ChangeDutyCycle(self.speed)
+        self.gpio.pwmR.ChangeDutyCycle(self.forward_speed)
     
     def right(self):
         self.gpio.set_dirL(True)
         self.gpio.set_dirR(True)
-        self.gpio.pwmL.ChangeDutyCycle(self.speed)
+        self.gpio.pwmL.ChangeDutyCycle(self.forward_speed)
         self.gpio.pwmR.ChangeDutyCycle(self.turn_speed)
     
     def clockwise(self):
