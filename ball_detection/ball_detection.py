@@ -174,7 +174,6 @@ while(1):
     cv2.imshow('image', img)
     # cv2.imshow(target_img, img_circles)
     cv2.imshow('result', img_circles)
-    cv2.imshow('modified', img_modify)
 
     # Press Q on keyboard to stop recording
     if cv2.waitKey(500) & 0xFF == ord('q'):
