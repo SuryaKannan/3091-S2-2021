@@ -5,7 +5,9 @@ import rospy
 import RPi.GPIO as GPIO
 from control.Move import Move
 from sensor_msgs.msg import Range 
+from std_msgs.msg import Bool, Float64 
 import time
+from statistics import mean
 
 class Controller():
     def __init__(self):
@@ -17,16 +19,74 @@ class Controller():
         self.right_range = 0
         self.left_range = 0
         self.back_range = 0
-        self.phase1 = True
+        self.phase_scan = True
+        self.moving_to_target = False
         self.target_detected = False
+        self.target_reached = False
+        self.orient = False
+        self.obstacle_detected = False
         self.target_radius = 0
-        self.target_distance = 0
-        self.forward_distance = 25
-        self.side_distance = 12
-        self.turning = False
-        self.delay = 0.5
-        self.sec = 0
+        self.forward_distance = 15
+        self.side_distance = 10
+        self.back_distance = 8
         rospy.Subscriber('/robot/sensors/ultrasonics',Range, self.ultrasonics,queue_size = 1)
+        rospy.Subscriber('/dist',Float64, self.navigate,queue_size = 1)
+        rospy.Subscriber('/radius',Float64, self.radius,queue_size = 1)
+        rospy.Subscriber('/detect',Bool, self.detect,queue_size = 1)
+        rospy.Subscriber('/reached',Bool, self.reached,queue_size = 1)
+
+    def navigate(self,data):
+        distance = data.data
+
+        if self.target_detected and self.orient: 
+            self.phase_scan = False
+            ## sometimes you don't need these two lines, depends on how good the detections are 
+            self.move.stop()
+            time.sleep(1.5) # to get a more accurate distance reading for orientation
+            if distance < 80:
+                self.move.clockwise()
+            elif distance > 80:
+                self.move.anticlockwise()
+            else:
+                self.moving_to_target = True
+
+        if self.moving_to_target and not self.obstacle_detected:
+            #self.move.stop()
+            #time.sleep(2)
+            if self.target_radius > 25:
+                if distance < 10:
+                    self.move.right_slight()
+                elif distance > 10:
+                    self.move.left_slight()
+                else:
+                    self.move.forward()
+            
+            elif self.radius < 25:
+                if distance < 10:
+                    self.move.right_slight()
+                elif distance > 10:
+                    self.move.left_slight()
+                else:
+                    self.move.forward()
+
+        if self.target_reached:
+            self.moving_to_target = False
+            self.move.forward()
+            time.sleep(2)
+            self.move.slow()
+            time.sleep(3)
+            self.move.stop()
+       
+    def reached(self,data):
+        self.target_reached = data.data
+
+    def radius(self,data):
+        self.target_radius = data.data
+
+    def detect(self,data):
+        self.target_detected = data.data
+        if self.target_detected:
+            self.orient = True        
 
     def ultrasonics(self,sensorData):
         if sensorData.header.frame_id == "front":
@@ -41,28 +101,50 @@ class Controller():
         if sensorData.header.frame_id == "back":
             self.back_range = sensorData.range
         
-        print("F: ", self.front_range, "L: ", self.left_range, "R: ",self.right_range)
-        if self.phase1:
-            if (self.front_range > self.forward_distance) or not self.front_range:
-                self.move.forward()
-            else:
-                self.move.stop()
-
-        else:
-            self.phase1 = False
-            self.allign()
+        if self.right_range < self.side_distance and self.back_range < self.back_distance and self.right_range and self.back_range:
+            self.direction = "right"
         
+        if self.front_range < self.forward_distance and self.direction is "right" and self.front_range:
+            self.wall = "right"
+        
+        #print("wall: ", self.wall, "direction:, ", self.direction)
+        
+        if self.phase_scan and not self.target_detected:
+            if self.direction is not "right":
+                self.move.clockwise()
             
-    def allign(self):
-        pass
-        
+            if self.direction == "right" and self.wall == "left":
+                if self.right_range > self.side_distance:
+                    self.move.right()
+                elif self.right_range < self.side_distance:
+                    self.move.left()
+                else:
+                    self.move.forward()
 
-if __name__ == '__main__':
+            if self.wall == "right" and self.direction == "right":
+                self.move.anticlockwise()
+
+        # for P3
+
+        if self.moving_to_target and not self.target_reached:
+            if self.front_range < self.forward_distance:
+                self.obstacle_detected = True
+
+        if self.obstacle_detected:
+            self.move.right()
+            time.sleep(2)
+            self.move.left()
+            time.sleep(2)
+            self.obstacle_detected = False
+                    
+    
+if __name__ == '__main__':   
     try:
         my_robot = Controller()
         rospy.spin()
-    
+                
     except KeyboardInterrupt: # If CTRL+C is pressed, exit cleanly:
         print("Keyboard interrupt")
+
     finally:
         GPIO.cleanup() # clear pin config 

@@ -1,118 +1,235 @@
-#!/usr/bin/env python2
-
-from sensor_msgs.msg import Image
-from std_msgs.msg import Float32
-import rospy 
-from cv_bridge import CvBridge
-from cv_bridge import CvBridge, CvBridgeError
-import cv2
 import numpy as np
+import cv2
+import time
+import rospy
+from std_msgs.msg import Float64,Bool
+# Initialize HSV min/max values
+global hMin,sMin,vMin,hMax,sMax,vMax 
+global phMin,psMin,pvMin,phMax,psMax,pvMax 
 
+rospy.init_node('vision')
+dist_pub = rospy.Publisher("/dist",Float64,queue_size = 10)
+radius_pub = rospy.Publisher("/radius",Float64,queue_size =10)
+detect_pub = rospy.Publisher("/detect",Bool,queue_size =10)
+reached_pub = rospy.Publisher("/reached",Bool,queue_size =10)
 
 def nothing(x):
     pass
 
-class Detect():
-    def __init__(self):
-        rospy.init_node("ball_detect")
-        rospy.Subscriber("/jetbot_camera/raw",Image,self.image_callback)
-        self.img_pub = rospy.Publisher("/image",Image)
-        self.bridge = CvBridge()
-        self.distance_arr = []
-        self.target_detected = False
-        self.detection_count = []
-        self.frame_count = 0
-    
-    def nothing(self,x):
-        pass
-    
-    def image_callback(self,data):
-        cv2_image = self.bridge.imgmsg_to_cv2(data,desired_encoding='passthrough')
-        img = cv2.flip(cv2_image, -1)
-        dimensions = img.shape
+def gstreamer_pipeline(
+    capture_width=3280,
+    capture_height=2464,
+    display_width=820,
+    display_height=616,
+    framerate=21,
+    flip_method=0,
+):
+    return (
+        "nvarguscamerasrc ! "
+        "video/x-raw(memory:NVMM), "
+        "width=(int)%d, height=(int)%d, "
+        "format=(string)NV12, framerate=(fraction)%d/1 ! "
+        "nvvidconv flip-method=%d ! "
+        "video/x-raw, width=(int)%d, height=(int)%d, format=(string)BGRx ! "
+        "videoconvert ! "
+        "video/x-raw, format=(string)BGR ! appsink"
+        % (
+            capture_width,
+            capture_height,
+            framerate,
+            flip_method,
+            display_width,
+            display_height,
+        )
+    )
+
+def detect():
+    cap = cv2.VideoCapture(gstreamer_pipeline(), cv2.CAP_GSTREAMER)
+    time.sleep(5)
+    if cap.isOpened():
+        # Create a window
+        cv2.namedWindow('image')
+
+        # Initialize HSV min/max values
+        hMin = sMin = vMin = hMax = sMax = vMax = 0
+        phMin = psMin = pvMin = phMax = psMax = pvMax = 0
+
+        # Create trackbars for color change
+        # Hue is from 0-179 for Opencv
+        cv2.createTrackbar('HMin', 'image', 0, 179, nothing)
+        cv2.createTrackbar('SMin', 'image', 0, 255, nothing)
+        cv2.createTrackbar('VMin', 'image', 0, 255, nothing)
+        cv2.createTrackbar('HMax', 'image', 0, 179, nothing)
+        cv2.createTrackbar('SMax', 'image', 0, 255, nothing)
+        cv2.createTrackbar('VMax', 'image', 0, 255, nothing)
+
+        cv2.createTrackbar('dp', 'image', 6, 13, nothing)
+        cv2.createTrackbar('param1', 'image', 24, 100, nothing)
+        cv2.createTrackbar('param2', 'image', 30, 100, nothing)
+        cv2.createTrackbar('minRadius', 'image', 1, 100, nothing)
+        cv2.createTrackbar('maxRadius', 'image', 1, 100, nothing)
+
+        # Set default value for Max HSV trackbars
+        '''
+        cv2.setTrackbarPos('dp', 'image', 10)
+        cv2.setTrackbarPos('param1', 'image', 8)
+        cv2.setTrackbarPos('param2', 'image', 15)
+        cv2.setTrackbarPos('minRadius', 'image', 5)
+        cv2.setTrackbarPos('maxRadius', 'image', 45)
+
+        cv2.setTrackbarPos('HMax', 'image', 179)
+        cv2.setTrackbarPos('SMax', 'image', 255)
+        cv2.setTrackbarPos('VMax', 'image', 155)
+        cv2.setTrackbarPos('HMin', 'image', 32)
+        cv2.setTrackbarPos('SMin', 'image', 83)
+        cv2.setTrackbarPos('VMin', 'image', 0)
+        '''
+
+        cv2.setTrackbarPos('dp', 'image', 12)
+        cv2.setTrackbarPos('param1', 'image', 33)
+        cv2.setTrackbarPos('param2', 'image', 34)
+        cv2.setTrackbarPos('minRadius', 'image', 5)
+        cv2.setTrackbarPos('maxRadius', 'image', 45)
+
+        cv2.setTrackbarPos('HMax', 'image', 179)
+        cv2.setTrackbarPos('SMax', 'image', 255)
+        cv2.setTrackbarPos('VMax', 'image', 255)
         
-        height = dimensions[0]
-        width = dimensions[1]
+        distance_arr = []
+        target_detected = False
+        detection_count = []
+        frame_count = 0
+
+        while True:
+            ret, img = cap.read()
+
+            dimensions = img.shape
+            # print("Image Size:" + str(dimensions))
+            height = dimensions[0]
+            width = dimensions[1]
+            
+            hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+            lower_modify = np.array([32, 127, 0])
+            upper_modify = np.array([179, 255, 255])
+            mask = cv2.inRange(hsv, lower_modify, upper_modify)
+            modify = cv2.bitwise_and(img, img, mask=mask)
+
+            gray_modify = cv2.cvtColor(modify, cv2.COLOR_BGR2GRAY)
+
+            circles = cv2.HoughCircles(gray_modify, cv2.HOUGH_GRADIENT, 1, 80, param1=3, param2=10, minRadius=1, maxRadius=45)
+
+            img_modify = img.copy()
+
+            if circles is not None:
+                circles = np.uint16(np.around(circles))
+                for i in circles[0, :]:
+                        # draw the circle
+                    cv2.circle(img_modify, (i[0], i[1]), i[2]+30, (0, 0, 0), -1)
+            
+            # Get current positions of all trackbars
+            hMin = cv2.getTrackbarPos('HMin', 'image')
+            sMin = cv2.getTrackbarPos('SMin', 'image')
+            vMin = cv2.getTrackbarPos('VMin', 'image')
+            hMax = cv2.getTrackbarPos('HMax', 'image')
+            sMax = cv2.getTrackbarPos('SMax', 'image')
+            vMax = cv2.getTrackbarPos('VMax', 'image')
+
+            dp = cv2.getTrackbarPos('dp', 'image')
+            param1 = cv2.getTrackbarPos('param1', 'image')
+            param2 = cv2.getTrackbarPos('param2', 'image')
+            minRadius = cv2.getTrackbarPos('minRadius', 'image')
+            maxRadius = cv2.getTrackbarPos('maxRadius', 'image')
+
+            # Set minimum and maximum HSV values to display
+            lower = np.array([hMin, sMin, vMin])
+            upper = np.array([hMax, sMax, vMax])
+
+        
+            # Convert to HSV format and color threshold
+            hsv = cv2.cvtColor(img_modify, cv2.COLOR_BGR2HSV)
+            mask = cv2.inRange(hsv, lower, upper)
+            result = cv2.bitwise_and(img_modify, img_modify, mask=mask)
+
        
-        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        lower_modify = np.array([32, 127, 0])
-        upper_modify = np.array([179, 255, 255])
-        mask = cv2.inRange(hsv, lower_modify, upper_modify)
-        modify = cv2.bitwise_and(img, img, mask=mask)
+            # Print if there is a change in HSV value
+            if((phMin != hMin) | (psMin != sMin) | (pvMin != vMin) | (phMax != hMax) | (psMax != sMax) | (pvMax != vMax) ):
+                print("(hMin = %d , sMin = %d, vMin = %d), (hMax = %d , sMax = %d, vMax = %d)" % (hMin , sMin , vMin, hMax, sMax, vMax))
+                phMin = hMin
+                psMin = sMin
+                pvMin = vMin
+                phMax = hMax
+                psMax = sMax
+                pvMax = vMax
 
-        gray_modify = cv2.cvtColor(modify, cv2.COLOR_BGR2GRAY)
-        
-        circles = cv2.HoughCircles(gray_modify, cv2.HOUGH_GRADIENT, 1, 80, param1=3, param2=10, minRadius=1, maxRadius=45)
-        
-        img_modify = img.copy()
+            gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
+            # hough circles
+            img_circles = result.copy()
+            circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, dp/10, 80, param1=param1, param2=param2, minRadius=minRadius, maxRadius=maxRadius)
+            if circles is not None:
+                circles = np.uint16(np.around(circles))
+                img_circles = result.copy()
 
-        if circles is not None:
-            circles = np.uint16(np.around(circles))
-            for i in circles[0, :]:
-                    # draw the circle
-                cv2.circle(img_modify, (i[0], i[1]), i[2]+30, (0, 0, 0), -1)
+            close_range = 20
+            centre_width = int(width/2)
 
-        lower = np.array([32, 83, 0])
-        upper = np.array([179, 255, 155])
+            cv2.line(img_circles, (centre_width, 0), (centre_width, height), (255, 0, 0), 2)
+            cv2.line(img_circles, (centre_width, centre_width-close_range), (centre_width, height), (0, 0, 255), 2)
+          
+            frame_count += 1
+            if frame_count >= 20:
+                frame_count = 20
+                detection_count.pop(0)
 
-        # Convert to HSV format and color threshold
-        hsv = cv2.cvtColor(img_modify, cv2.COLOR_BGR2HSV)
-        mask = cv2.inRange(hsv, lower, upper)
-        result = cv2.bitwise_and(img_modify, img_modify, mask=mask)
+            detection_count.append(0)
 
-        gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
+            print(target_detected)
+            print("Detection:", detection_count)
 
-        img_circles = result.copy()
-        ## hough circles
-        circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1.2, 80, param1=33, param2=34, minRadius=5, maxRadius=45)
-        if circles is not None:
-            circles = np.uint16(np.around(circles))
-            img_circles = img.copy()
-        
-        close_range = 20
-        centre_width = int(width/2)
+            if sum(detection_count) < 8:
+                target_detected = False
+                detect_pub.publish(False)
 
-        cv2.line(img_circles, (centre_width, 0), (centre_width, height), (255, 0, 0), 2)
-        cv2.line(img_circles, (centre_width, centre_width-close_range), (centre_width, height), (0, 0, 255), 2)
-        
-        self.frame_count += 1
-        if self.frame_count >= 20:
-            frame_count = 20
-            self.detection_count.pop(0)
+            if circles is not None:
+                detection_count.pop(-1)
+                detection_count.append(1)
 
-        self.detection_count.append(0)
-        print(self.target_detected)
-        print("Detection:", self.detection_count)
+                if sum(detection_count) >= 8:
+                    target_detected = True
+                    detect_pub.publish(True)
+                for i in circles[0, :]:
+                    # draw the outer circle
+                    cv2.circle(img_circles, (i[0], i[1]), i[2], (0, 255, 0), 2)
+                    # draw the center of the circle
+                    cv2.circle(img_circles, (i[0], i[1]), 2, (0, 0, 255), 3)
+                    distance = i[0]-centre_width
+                    if len(distance_arr) >= 10:
+                        distance_arr.pop(0)
+                    distance_arr.append(distance)
 
-        if sum(self.detection_count) < 10:
-            self.target_detected = False
-        
-        if circles is not None:
-            self.detection_count.pop(-1)
-            self.detection_count.append(1)
-            if sum(self.detection_count) >= 8:
-                target_detected = True
-            for i in circles[0, :]:
-                # draw the outer circle
-                cv2.circle(img_circles, (i[0], i[1]), i[2], (0, 255, 0), 2)
-                # draw the center of the circle
-                cv2.circle(img_circles, (i[0], i[1]), 2, (0, 0, 255), 3)
-                distance = i[0]-centre_width
-                if len(self.distance_arr) >= 10:
-                    self.distance_arr.pop()
-                    self.distance_arr.append(distance)
+                    dist_np = np.array(distance_arr)
+                    dist_pub.publish(float(np.average(dist_np)))
+                    print("average dist:", np.average(dist_np) )
 
-                print("Radius:", i[2])
-                print(distance)
-                if(i[1]>=(height-close_range)):
-                    print("Target in range")
+                    print("Radius:", i[2])
+                    radius_pub.publish(float(i[2]))
+                    if(i[1]>=(height-close_range)):
+                        reached_pub.publish(True)
+                        print("Target in range")
 
-        ros_img = self.bridge.cv2_to_imgmsg(result,"bgr8")
-        self.img_pub.publish(ros_img)  
+            # Display result image
+            cv2.imshow('image', img)
+            #cv2.imshow('result', img_circles)
+            
+            keyCode = cv2.waitKey(30) & 0xFF
+            # Stop the program on the ESC key
+            if keyCode == 27:
+                break
+
+        cap.release()
+        cv2.destroyAllWindows()
+    else:
+        print("Unable to open camera")
+
 
 if __name__ == "__main__":
-    try:
-        detect = Detect()
-        rospy.spin()
-    except rospy.ROSInterruptException:
-        pass 
+    detect()

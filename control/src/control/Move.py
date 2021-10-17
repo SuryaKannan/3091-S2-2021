@@ -29,14 +29,14 @@ class Move:
     def __init__(self):
         self.gpio = MyRobotGPIO()
         self.forward_speed = 30
-        self.turn_speed = 10
-        self.rotate_speed = 50
-        self.slow_speed = 10
+        self.turn_speed = 15
+        self.rotate_speed = 23
+        self.slow_speed = 15
 
     def forward(self):
         self.gpio.set_dirL(True)
         self.gpio.set_dirR(True)
-        self.gpio.pwmL.ChangeDutyCycle(self.forward_speed)
+        self.gpio.pwmL.ChangeDutyCycle(33)
         self.gpio.pwmR.ChangeDutyCycle(self.forward_speed)
     
     def left(self):
@@ -78,6 +78,12 @@ class Move:
     def slow(self):
         self.gpio.set_dirL(True)
         self.gpio.set_dirR(True)
+        self.gpio.pwmL.ChangeDutyCycle(self.slow_speed)
+        self.gpio.pwmR.ChangeDutyCycle(self.slow_speed)
+    
+    def back(self):
+        self.gpio.set_dirL(False)
+        self.gpio.set_dirR(False)
         self.gpio.pwmL.ChangeDutyCycle(self.slow_speed)
         self.gpio.pwmR.ChangeDutyCycle(self.slow_speed)
 
