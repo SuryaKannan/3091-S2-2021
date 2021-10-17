@@ -17,9 +17,15 @@ class Controller():
         self.right_range = 0
         self.left_range = 0
         self.back_range = 0
-        self.orientation_range = 15
         self.phase1 = True
         self.target_detected = False
+        self.target_radius = 0
+        self.target_distance = 0
+        self.forward_distance = 25
+        self.side_distance = 10
+        self.turning = False
+        self.delay = 0.5
+        self.sec = 0
         rospy.Subscriber('/robot/sensors/ultrasonics',Range, self.ultrasonics)
 
     def ultrasonics(self,sensorData):
@@ -34,50 +40,32 @@ class Controller():
         
         if sensorData.header.frame_id == "back":
             self.back_range = sensorData.range
-
-        print("direction: ",self.direction," wall: ",self.wall)
         
+        print("F: ", self.front_range, "L: ", self.left_range, "R: ",self.right_range)
         if self.phase1:
-            if self.right_range < self.orientation_range and self.back_range < self.orientation_range and self.right_range and self.back_range:
-                self.direction = "right"
-            
-            if self.front_range < self.orientation_range and self.right_range < self.orientation_range and self.right_range and self.front_range:
-                self.wall = "right"
-            
-            self.phase_1_loop()
-    
-            
-    def phase_1_loop(self):
-        # scan from left corner until detected
-        if self.direction is not "right" and not self.target_detected:
-            self.move.clockwise()
-        elif self.direction is not "right" and self.target_detected:
-            self.allign()
-            self.phase1 = False
-        else:
-            self.move.stop()
-        
-    
-        # move to right wall
-        if self.direction is "right" and self.wall is not "right":
-            self.move.forward()
-            if self.right_range > int(1.25*self.orientation_range):
-                self.move.right_slight()
-            elif self.right_range < self.orientation_range: 
-                self.move.left_slight()
-            else:
-                self.move.forward
-        
-        # scan from right corner until detected, stop if you can't detect the bearing
-        if self.wall is "right" and not self.target_detected:
-            self.move.anticlockwise()
-            if self.left_range < self.orientation_range:
-                self.move.stop()
-        elif self.wall is "right" and self.target_detected:
-            self.allign()
-            self.phase1 = False
-        
+            if (self.front_range > self.forward_distance) or not self.front_range:
+                if self.right_range > self.side_distance and self.left_range > self.side_distance:
+                    self.move.forward()
+                    print("action 1")
+                elif self.right_range < self.side_distance:
+                    self.move.left()
+                    print("action 2")
+                elif  self.left_range < self.side_distance:
+                    self.move.right()
+                    print("action 3")
 
+            if self.front_range < self.forward_distance and self.front_range:
+                if self.right_range < self.left_range and self.right_range and self.left_range:
+                    self.move.left()
+                    print("action 4")
+                elif self.right_range > self.left_range and self.right_range and self.left_range:
+                    self.move.right()
+                    print("action 5")
+        else:
+            self.phase1 = False
+            self.allign()
+        
+            
     def allign(self):
         pass
         
@@ -91,5 +79,3 @@ if __name__ == '__main__':
         print("Keyboard interrupt")
     finally:
         GPIO.cleanup() # clear pin config 
-
-

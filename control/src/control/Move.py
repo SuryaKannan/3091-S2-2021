@@ -28,8 +28,8 @@ class MyRobotGPIO():
 class Move:
     def __init__(self):
         self.gpio = MyRobotGPIO()
-        self.forward_speed = 80
-        self.turn_speed = 40
+        self.forward_speed = 50
+        self.turn_speed = 30
         self.rotate_speed = 50
         self.slow_speed = 20
 
@@ -63,13 +63,13 @@ class Move:
         self.gpio.pwmL.ChangeDutyCycle(self.forward_speed)
         self.gpio.pwmR.ChangeDutyCycle(int(self.turn_speed*1.25))
     
-    def clockwise(self):
+    def anticlockwise(self):
         self.gpio.set_dirL(True)
         self.gpio.set_dirR(False)
         self.gpio.pwmL.ChangeDutyCycle(self.rotate_speed)
         self.gpio.pwmR.ChangeDutyCycle(self.rotate_speed)
     
-    def anticlockwise(self):
+    def clockwise(self):
         self.gpio.set_dirL(False)
         self.gpio.set_dirR(True)
         self.gpio.pwmL.ChangeDutyCycle(self.rotate_speed)
