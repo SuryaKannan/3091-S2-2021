@@ -3,10 +3,10 @@ import time
 
 class MyRobotGPIO():
     def __init__(self):
-        self.outR = 32
-        self.outL = 33
-        self.dirR = 11
-        self.dirL = 12
+        self.outL = 32
+        self.outR = 33
+        self.dirL = 11
+        self.dirR = 12
         GPIO.setmode(GPIO.BOARD) #use numbering system on board 
         GPIO.setup(self.outR,GPIO.OUT) # similar to arduino
         GPIO.setup(self.dirR,GPIO.OUT)
@@ -28,10 +28,10 @@ class MyRobotGPIO():
 class Move:
     def __init__(self):
         self.gpio = MyRobotGPIO()
-        self.forward_speed = 50
-        self.turn_speed = 30
+        self.forward_speed = 30
+        self.turn_speed = 10
         self.rotate_speed = 50
-        self.slow_speed = 20
+        self.slow_speed = 10
 
     def forward(self):
         self.gpio.set_dirL(True)
@@ -63,13 +63,13 @@ class Move:
         self.gpio.pwmL.ChangeDutyCycle(self.forward_speed)
         self.gpio.pwmR.ChangeDutyCycle(int(self.turn_speed*1.25))
     
-    def anticlockwise(self):
+    def clockwise(self):
         self.gpio.set_dirL(True)
         self.gpio.set_dirR(False)
         self.gpio.pwmL.ChangeDutyCycle(self.rotate_speed)
         self.gpio.pwmR.ChangeDutyCycle(self.rotate_speed)
     
-    def clockwise(self):
+    def anticlockwise(self):
         self.gpio.set_dirL(False)
         self.gpio.set_dirR(True)
         self.gpio.pwmL.ChangeDutyCycle(self.rotate_speed)

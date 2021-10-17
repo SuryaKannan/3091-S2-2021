@@ -18,9 +18,9 @@
 #define TRIGGER_PIN_1  5  // Common Trig pin 1 for ultrasonics 
 #define TRIGGER_PIN_2  12  // Common Trig pin 1 for ultrasonics 
 #define ECHO_PIN_F  8  // front ultrasonic
-#define ECHO_PIN_L  6  // left ultrasonic
-#define ECHO_PIN_R  4  // right ultrasonic
-#define ECHO_PIN_B  3  // back ultrasonic
+#define ECHO_PIN_L  4  // left ultrasonic
+#define ECHO_PIN_R  6  // right ultrasonic
+#define ECHO_PIN_B  2  // back ultrasonic
 #define SERVO_PIN 9 // digital pin 9
 #define MAX_DISTANCE 200 // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
 
@@ -64,14 +64,13 @@ void loop() {
   Serial.print("L: ");
   Serial.print(distL);
   Serial.print('\t');
-
   Serial.print("R: ");
   Serial.print(distR);
   Serial.print('\t');
    
   Serial.print("B: ");
   Serial.println(distB);
-   */
+  */ 
 }
 
 // order of sensor information critical

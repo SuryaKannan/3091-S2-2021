@@ -22,11 +22,11 @@ class Controller():
         self.target_radius = 0
         self.target_distance = 0
         self.forward_distance = 25
-        self.side_distance = 10
+        self.side_distance = 12
         self.turning = False
         self.delay = 0.5
         self.sec = 0
-        rospy.Subscriber('/robot/sensors/ultrasonics',Range, self.ultrasonics)
+        rospy.Subscriber('/robot/sensors/ultrasonics',Range, self.ultrasonics,queue_size = 1)
 
     def ultrasonics(self,sensorData):
         if sensorData.header.frame_id == "front":
@@ -44,23 +44,10 @@ class Controller():
         print("F: ", self.front_range, "L: ", self.left_range, "R: ",self.right_range)
         if self.phase1:
             if (self.front_range > self.forward_distance) or not self.front_range:
-                if self.right_range > self.side_distance and self.left_range > self.side_distance:
-                    self.move.forward()
-                    print("action 1")
-                elif self.right_range < self.side_distance:
-                    self.move.left()
-                    print("action 2")
-                elif  self.left_range < self.side_distance:
-                    self.move.right()
-                    print("action 3")
+                self.move.forward()
+            else:
+                self.move.stop()
 
-            if self.front_range < self.forward_distance and self.front_range:
-                if self.right_range < self.left_range and self.right_range and self.left_range:
-                    self.move.left()
-                    print("action 4")
-                elif self.right_range > self.left_range and self.right_range and self.left_range:
-                    self.move.right()
-                    print("action 5")
         else:
             self.phase1 = False
             self.allign()

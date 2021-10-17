@@ -8,11 +8,20 @@ from cv_bridge import CvBridge, CvBridgeError
 import cv2
 import numpy as np
 
+
+def nothing(x):
+    pass
+
 class Detect():
     def __init__(self):
         rospy.init_node("ball_detect")
         rospy.Subscriber("/jetbot_camera/raw",Image,self.image_callback)
+        self.img_pub = rospy.Publisher("/image",Image)
         self.bridge = CvBridge()
+        self.distance_arr = []
+        self.target_detected = False
+        self.detection_count = []
+        self.frame_count = 0
     
     def nothing(self,x):
         pass
@@ -20,39 +29,86 @@ class Detect():
     def image_callback(self,data):
         cv2_image = self.bridge.imgmsg_to_cv2(data,desired_encoding='passthrough')
         img = cv2.flip(cv2_image, -1)
-
-      
         dimensions = img.shape
+        
+        height = dimensions[0]
+        width = dimensions[1]
        
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        lower = np.array([0, 0, 0])
-        upper = np.array([179, 57, 137])
-        mask = cv2.inRange(hsv, lower, upper)
-        result = cv2.bitwise_and(img, img, mask=mask)
+        lower_modify = np.array([32, 127, 0])
+        upper_modify = np.array([179, 255, 255])
+        mask = cv2.inRange(hsv, lower_modify, upper_modify)
+        modify = cv2.bitwise_and(img, img, mask=mask)
+
+        gray_modify = cv2.cvtColor(modify, cv2.COLOR_BGR2GRAY)
         
-        cv2.imshow("Mask Result", result)
+        circles = cv2.HoughCircles(gray_modify, cv2.HOUGH_GRADIENT, 1, 80, param1=3, param2=10, minRadius=1, maxRadius=45)
         
-        gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
-        
-        ## hough circles
-        circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 80, param1=50, param2=20, minRadius=10, maxRadius=25)
+        img_modify = img.copy()
+
         if circles is not None:
             circles = np.uint16(np.around(circles))
-        img_circles = img.copy()
+            for i in circles[0, :]:
+                    # draw the circle
+                cv2.circle(img_modify, (i[0], i[1]), i[2]+30, (0, 0, 0), -1)
+
+        lower = np.array([32, 83, 0])
+        upper = np.array([179, 255, 155])
+
+        # Convert to HSV format and color threshold
+        hsv = cv2.cvtColor(img_modify, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv, lower, upper)
+        result = cv2.bitwise_and(img_modify, img_modify, mask=mask)
+
+        gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
+
+        img_circles = result.copy()
+        ## hough circles
+        circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1.2, 80, param1=33, param2=34, minRadius=5, maxRadius=45)
+        if circles is not None:
+            circles = np.uint16(np.around(circles))
+            img_circles = img.copy()
+        
+        close_range = 20
+        centre_width = int(width/2)
+
+        cv2.line(img_circles, (centre_width, 0), (centre_width, height), (255, 0, 0), 2)
+        cv2.line(img_circles, (centre_width, centre_width-close_range), (centre_width, height), (0, 0, 255), 2)
+        
+        self.frame_count += 1
+        if self.frame_count >= 20:
+            frame_count = 20
+            self.detection_count.pop(0)
+
+        self.detection_count.append(0)
+        print(self.target_detected)
+        print("Detection:", self.detection_count)
+
+        if sum(self.detection_count) < 10:
+            self.target_detected = False
         
         if circles is not None:
+            self.detection_count.pop(-1)
+            self.detection_count.append(1)
+            if sum(self.detection_count) >= 8:
+                target_detected = True
             for i in circles[0, :]:
                 # draw the outer circle
                 cv2.circle(img_circles, (i[0], i[1]), i[2], (0, 255, 0), 2)
                 # draw the center of the circle
                 cv2.circle(img_circles, (i[0], i[1]), 2, (0, 0, 255), 3)
-        
-        
-        cv2.imshow("Original", img)
-        cv2.imshow("Hough Circle Result", img_circles)
-        cv2.waitKey(3)
+                distance = i[0]-centre_width
+                if len(self.distance_arr) >= 10:
+                    self.distance_arr.pop()
+                    self.distance_arr.append(distance)
 
+                print("Radius:", i[2])
+                print(distance)
+                if(i[1]>=(height-close_range)):
+                    print("Target in range")
 
+        ros_img = self.bridge.cv2_to_imgmsg(result,"bgr8")
+        self.img_pub.publish(ros_img)  
 
 if __name__ == "__main__":
     try:
